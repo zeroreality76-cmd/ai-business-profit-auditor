@@ -1,10 +1,10 @@
-# BUILD_PLAN.md – Arbetsschema (Architect-output, v2)
+# BUILD_PLAN.md – Arbetsschema (Architect-output, v3)
 
 Följer `PROJECT_ARCHITECTURE_BLUEPRINT.md` v1.1 (§115A). Ingen kod i detta dokument. Roller och regler: `AGENTS.md`.
 
-Status: **v2 – inarbetar `docs/SECURITY_REVIEW_PLAN.md` (fynd SEC-01–SEC-24, krav P1–P16). Väntar på omgranskning av Security Reviewer och ägarens godkännande.**
+Status: **v3 – inarbetar `docs/SECURITY_REVIEW_PLAN.md` (SEC-01–SEC-24, P1–P16) och `docs/SECURITY_REVIEW_PLAN_V2.md` (V2-01–V2-17, BLOCKER A och B). Väntar på Security Reviewers granskning av v3 och ägarens godkännande (H1) samt godkännande av ADR-015 och ADR-016.**
 
-Säkerhetsfynd som ändrat planen är märkta **[SEC-nn]**.
+Säkerhetsfynd som ändrat planen är märkta **[SEC-nn]** (första rapporten) och **[V2-nn]** (omgranskningen).
 
 ---
 
@@ -19,7 +19,7 @@ Skäl: minst antal rörliga delar, snabbast till live, ingen egen nätverks-/IAM
 
 | ID | Standard |
 | --- | --- |
-| OB-1 AI-leverantör | Väljs vid S1F.2. Modellnamn och priser kontrolleras då mot leverantörens aktuella dokumentation. |
+| OB-1 AI-leverantör | **Beslutas före S0.0** (används första gången i S1A.5). Urvalskrav: DPA finns, ingen träning på kunddata, kortast möjliga retention, EU-behandling där det erbjuds. Modellnamn och priser kontrolleras mot aktuell dokumentation vid S1A.5 [V2-11]. |
 | OB-2 Behörighet | Matrisen i blueprint §4.1. |
 | OB-3 Severity-mappning | Förslaget i blueprint §27. |
 | OB-4 Lead time m.m. | Tabell i blueprint §21A. |
@@ -29,9 +29,9 @@ Skäl: minst antal rörliga delar, snabbast till live, ingen egen nätverks-/IAM
 | OB-8 Synlighet för chattrådar | Privata per användare. Tool-anrop kontrolleras alltid mot `company_access` [SEC-03]. |
 | OB-9 Operatörsåtkomst till production | Break-glass: tidsbegränsad, MFA, auditloggad [SEC-18]. |
 
-**OB-1 (AI-leverantör, med DPA och ingen träning på kunddata) och OB-5 ska beslutas före S0.0**, eftersom första AI-användningen sker redan i S1A.5/S1A.8 [SEC-08].
+**OB-1, OB-5 och OB-6 ska vara beslutade före S0.0.** De är uttryckliga beroenden i S0.0, och agenten får inte starta S0.0 förrän ägaren har bekräftat dem i `docs/DECISIONS.md` [SEC-08, V2-11, P2].
 
-**Miljöer just nu:** endast `staging` finns (ett gratis Supabase-projekt). `production` skapas före första pilotkund (Supabase Pro). Production-delarna av gaterna nedan skjuts till dess.
+**Miljöer just nu:** endast `staging` finns (ett gratis Supabase-projekt). `production` skapas före första kunddata (Supabase Pro). Detta avviker från blueprint §74 och regleras av **ADR-015** (kräver ägarens godkännande). Före första kunddata ska en **Production readiness-gate** vara grön (avsnitt 4A) [V2-04].
 
 ---
 
@@ -39,14 +39,14 @@ Skäl: minst antal rörliga delar, snabbast till live, ingen egen nätverks-/IAM
 
 Saknas något av detta är det en **BLOCKER** för S0.0. Agenten skapar aldrig konton åt ägaren.
 
-1. GitHub-repo med skrivåtkomst för agenten (molnagent kopplad till repot, eller smal token med `Contents` + `Workflows` write för detta repo).
+1. GitHub-repo med skrivåtkomst för agenten. Agenten ska ha **egen identitet** (GitHub-app eller maskinkonto), inte ägarens personliga konto, så att ägaren kan godkänna agentens pull requests [V2-03]. Smal token (`Contents` + `Workflows` write, bara detta repo) om maskinkonto används.
 2. Supabase: två projekt, `staging` och `production`.
 3. Railway: två miljöer med API-tjänst och worker-tjänst.
 4. Cloudflare: Pages-projekt och R2-buckets (staging och production).
-5. API-nyckel hos AI-leverantör (behövs först vid S1A.8 för AI-mappning).
+5. API-nyckel hos AI-leverantör (behövs först vid S1A.5, första AI-användningen) [V2-11].
 6. Hemligheter läggs i GitHub Environments (`staging`, `production`) och plattformarnas secret stores. **Aldrig i chatten eller i repot.**
 7. GitHub Environment `production` ska kräva manuellt godkännande (required reviewer = ägaren).
-8. Branch protection på `main`: PR krävs, CI krävs, inga direkt-pushar [SEC-10].
+8. Branch protection på `main`: PR krävs, CI krävs, **Require review from Code Owners**, **Do not allow bypassing** (inklusive administratörer), inga force-pushar, inga direkt-pushar [SEC-10, V2-03]. Kräver att agenten har egen identitet (punkt 1). Under planeringsfasen, då inga kodändringar sker, gäller Required approvals = 0 och ägarens manuella merge som kontroll.
 9. Slå på GitHub secret scanning och push protection [SEC-15].
 10. Besluta OB-1 och OB-5 (se avsnitt 0) innan S0.0.
 11. Supabase: lägg aldrig appens tabeller i Husappens projekt. Staging-projektet är separat [SEC-01].
@@ -63,7 +63,9 @@ Agenterna kör själva däremellan.
 | H2 | Skapa konton och lägg hemligheter (avsnitt 1) | Ägare |
 | H3 | Godkänn production-deploy efter Stage 0 exit gate | Ägare |
 | H4 | Godkänn production-deploy efter Stage 1C (första marknadsdugliga leveransen) | Ägare |
-| H5 | Besvara OB-1 före S1A.8 om standard inte duger | Ägare |
+| H5 | Besluta OB-1, OB-5 och OB-6 före S0.0 | Ägare |
+| H7 | Godkänn ADR-015 (production uppskjuten) och ADR-016 (E2E-konton) | Ägare |
+| H8 | Bekräfta att branch protection, Code Owner-krav och secret scanning är på (skärmdump) | Ägare |
 | H6 | Välj pilotföretag och samla feedback (§84, §111) | Ägare |
 
 ---
@@ -78,7 +80,11 @@ En task är klar först när (blueprint §73):
 - loggning och dokumentation finns,
 - CI är grön (lint, typecheck, tester, **bypass-scan**, **arkitekturtest**, migrationstest),
 - den är deployad och verifierad i staging,
-- ingen bypass-, mock- eller demokod har tillkommit.
+- ingen bypass-, mock- eller demokod har tillkommit,
+- **varje task har en rad `Säkerhetstester` med minst ett negativt fall** (fel roll, fel tenant, fientlig indata eller ogiltigt tillstånd) [P1],
+- **katalogtestet för RLS-täckning är grönt:** varje tabell i app-schemat med `company_id` eller `organization_id` har RLS påslaget, `FORCE ROW LEVEL SECURITY`, minst en policy och inga grants till `anon`, `authenticated` eller `PUBLIC`. Testet räknar upp tabellerna dynamiskt och genererar ett cross-tenant-test per tabell [V2-01],
+- **raderingsregistret är komplett:** varje tabell med `company_id` finns i raderingsregistret (S0.7) [V2-02],
+- dependency-audit, secret-skanning och containerskanning är gröna utan HIGH/CRITICAL (undantag endast via fil under CODEOWNERS) [V2-05].
 
 ---
 
@@ -89,6 +95,8 @@ En task är klar först när (blueprint §73):
 - **Filer:** `.github/workflows/ci.yml`, `deploy-staging.yml`, `deploy-production.yml`, `apps/api/main.py` (endast `GET /api/v1/health`), `Dockerfile`, `infra/README.md` (vilka tjänster, vilka secret-namn, inga värden).
 - **Beroenden:** H2.
 - **Säkerhetskontroller [SEC-10, SEC-17]:** `CODEOWNERS` som kräver ägarens granskning för `.github/workflows/`, `migrations/`, `infra/`, `core/security.py`, RLS-policyer, bypass-scan-konfiguration och säkerhetstester. Actions låsta till commit-SHA, `permissions:` minimala, inget `pull_request_target` med PR-kod, deploy-tokens per miljö med minsta behörighet. PR-previews får aldrig använda staging- eller production-hemligheter.
+- **Beroenden (ytterligare):** OB-1, OB-5 och OB-6 beslutade (H5), ADR-015 och ADR-016 godkända (H7), inställningar bekräftade (H8) [P2, V2-03].
+- **Inställningar som ska verifieras (H8):** Code Owner-granskning krävs, bypass förbjudet även för administratörer, force-push blockerat, secret scanning och push protection på (om repot görs privat och funktionen kräver betald plan: `gitleaks` i CI som fallback), `CODEOWNERS` skyddar även sig själv och `.github/`. Verifier noterar bekräftelsen som bevis.
 - **Gate:** `GET /api/v1/health` ger 200 över HTTPS i **staging**, deployat av CI/CD. (Production tas när det skapats, före pilot.) Agenten får aldrig ändra säkerhetstester för att få en gate grön. Sådan ändring rapporteras som BLOCKER.
 
 ### S0.1 Repository
@@ -96,11 +104,13 @@ En task är klar först när (blueprint §73):
 - **Filer:** `pyproject.toml` med låst lockfile, `src/business_auditor/...` (tomma moduler med `__init__.py`), `tests/{unit,integration,contract,golden,e2e,architecture}`, `scripts/bypass_scan.py`, `tests/architecture/test_import_rules.py`, `apps/web` (Vite + React + TS + Tailwind), `docs/adr/`, dokumentationsfilerna från §108 (skelett).
 - **Tester:** Arkitekturtest (Domain får inte importera FastAPI, SQLAlchemy, AI- eller storage-SDK:er). Bypass-scan (förbjudna mönster i `src/` och `apps/`: `DISABLE_AUTH`, `DEBUG_USER`, `Mock*Provider`, `FakeStorage`, `localhost`, `docker-compose`, m.fl.).
 - **Utökat [SEC-09, SEC-15]:** Bypass-scan täcker även `infra/`, `scripts/`, `.github/workflows/` och `Dockerfile`. Scan som misslyckas om hemligheter (service role, R2-nycklar, AI-nyckel) finns i frontend-bygget eller `VITE_*`-variabler. Import-linter förbjuder import av testdubletter från `src/`. **Loggredaktor** i `core/logging.py` med fält-allowlist, plus kanarietest (kända hemliga strängar får aldrig synas i logg). Förbjudet i logg: signerade URL:er, delade Sheets-länkar, sample values, prompts/AI-svar, originalfilnamn, request-/response-bodies, `jobs.payload`, JWT.
-- **Gate:** CI: `lint`, `typecheck`, `tests`, `bypass-scan`, `architecture-test`, `log-canary-test`, `container-build` alla gröna.
+- **Utökat [V2-05, V2-12, V2-14, V2-16]:** `core/logging.py` (flyttad hit från S0.2). Dependency-audit för Python och frontend, secret-skanning i CI, containerskanning, lockfil även för frontend. `.dockerignore` som utesluter `fixtures/`, `tests/` och `docs/`, plus CI-test som visar att imagen inte innehåller dem. Bypass-scanens undantag i en fil under CODEOWNERS med motivering per rad (t.ex. `localhost` i `HEALTHCHECK`). Dokumentskelett inkluderar underbiträdeslista i `SECURITY.md` och retention hos AI-leverantör och plattformar. `customer_reference_hash` använder HMAC med nyckel i secret store/KMS, roteras och förstörs vid radering av företaget.
+- **Säkerhetstester:** log-canary, bypass-scan med positiva och negativa fall, test att imagen saknar `fixtures/`.
+- **Gate:** CI: `lint`, `typecheck`, `tests`, `bypass-scan`, `architecture-test`, `log-canary-test`, `dependency-audit`, `secret-scan`, `container-scan`, `container-build` alla gröna.
 
 ### S0.2 Configuration
 - **Mål:** Typade inställningar som vägrar starta utan obligatoriska hemligheter.
-- **Filer:** `core/config.py`, `core/errors.py`, `core/logging.py` (JSON-loggar, `request_id`).
+- **Filer:** `core/config.py`, `core/errors.py` (loggmodulen ligger i S0.1).
 - **Tester:** Saknad secret → startup failure. Hemligheter förekommer aldrig i loggutskrift.
 - **Gate:** Testerna gröna i CI. Staging startar med riktiga secrets.
 
@@ -114,7 +124,9 @@ En task är klar först när (blueprint §73):
   - Fyra roller: `migrator` (endast CI-migrationer), `app_api`, `app_worker` (smal policy på `jobs`, sedan `SET LOCAL` från `jobs.company_id`), `app_deleter` (endast `DELETE_COMPANY_DATA`). Ingen runtime-roll har BYPASSRLS eller DDL.
   - Policys är fail-closed: saknat tenant-värde ger noll rader. `SET LOCAL` används alltid inne i transaktion.
   - `audit_log`: runtime-roller får bara `INSERT`, ingen FK med cascade mot `companies`, definierade fält (actor, org, company, action, target, resultat, request_id, tidpunkt), ingen affärsdata.
-- **Gate:** Migrationer, Data API-test (publik nyckel + testkonto nekas på varje tabell), RLS fail-closed-test, pool-läckagetest (tenant-kontext följer inte med mellan requests), `rolbypassrls = false` för alla runtime-roller. Mönstret verifierat mot aktuell Supabase-dokumentation.
+- **Utökat [V2-07, V2-17]:** Policyer även för `organizations`, `organization_memberships` och `company_access` via en andra variabel `app.current_user_id`. Definierad väg för att skapa första organisationen (insert tillåts när `created_by = current_user_id`). Händelsekatalog för `audit_log` (inloggningar och misslyckade inloggningar, utfärdade signerade URL:er, rapportnedladdningar, mappningsbekräftelse, flaggändringar, raderingsverifiering) och retention. Testkontohjälparen för staging ingår här (ADR-016).
+- **Säkerhetstester:** fail-closed även för organisationsnivå, katalogtestet för RLS-täckning (avsnitt 3), cross-tenant per tabell.
+- **Gate:** Migrationer, Data API-test (publik nyckel + testkonto nekas på varje tabell, tabeller räknas upp dynamiskt), RLS fail-closed-test, pool-läckagetest (tenant-kontext följer inte med mellan requests), `rolbypassrls = false` för alla runtime-roller. Mönstret verifierat mot aktuell Supabase-dokumentation.
 
 ### S0.4 Authentication
 - **Mål:** Registrering, login, logout, password reset bakom ett auth-interface (Supabase Auth). JWT-validering i API. `TenantContext` per request. Minimal inloggningssida i `apps/web` så att etappen är användbar live.
@@ -128,12 +140,15 @@ En task är klar först när (blueprint §73):
   - API accepterar endast `Authorization: Bearer` (inget CSRF-behov). CORS: exakt allowlist per miljö. Strikt CSP och säkerhetsheaders (HSTS, nosniff, `Referrer-Policy: strict-origin-when-cross-origin`, `frame-ancestors 'none'`).
   - Rate limiting för auth, `upload-url`, `google-sheet`, chatt och `audits`. Verifierad e-post krävs. MFA som tillval för `owner`/`admin`.
   - Cross-tenant ger samma svar som "finns inte" (404), så resursers existens avslöjas inte.
-- **Gate:** `Authentication PASS`, `Tenant isolation PASS` (hela route-matrisen, inte ett enskilt test).
+- **Utökat [V2-08, V2-17]:** `company_access` genomdrivs i auktoriseringsfunktionen. Matrisen får två extra dimensioner: (a) medlem begränsad via `company_access`, (b) annan användare i samma företag (chattrådar privata enligt OB-8). Skydd mot kontouppräkning vid registrering och lösenordsåterställning. Beslut om var token lagras i frontend och hur XSS hanteras (CSP). Rate limiting definierad per endpoint och nivå.
+- **Säkerhetstester:** viewer försöker skriva, begränsad medlem når inte företag utanför `company_access`, användare B läser inte användare A:s chattråd.
+- **Gate:** `Authentication PASS`, `Tenant isolation PASS` (hela route-matrisen med utökade dimensioner, inte ett enskilt test).
 
 ### S0.5 Storage
 - **Mål:** `ObjectStorage`-adapter mot R2 med signerade upp- och nedladdnings-URL:er, nyckelstruktur `organization/company/import/file`.
 - **Regler:** Versionering avstängd eller permanent rensning för kundfiler (§66, §107).
 - **Säkerhetskrav [SEC-05, SEC-21]:** Servern genererar hela nyckeln (`org/company/import/<uuid>`), klientens filnamn är bara sanerad metadata. TTL ≤ 10 min för uppladdning och ≤ 5 min för nedladdning (`Content-Disposition: attachment`, ingen CDN-cache). Vid registrering gör servern `HEAD` och kontrollerar storlek, och beräknar själv `sha256` i `SCANNING`. Lifecycle-regel tar bort oregistrerade objekt efter 24 h. Rate limit på `upload-url`.
+- **Utökat [V2-15]:** Objekt som överskrider storleksgränsen raderas direkt vid registreringen. Ofullständiga multipart-uppladdningar avbryts av lifecycle-regel. Verifiera mot R2:s dokumentation om signerade URL:er kan begränsa längd och typ.
 - **Tester:** upload, read, delete, signerad URL går ut, åtkomst över tenantgräns nekas, användare A kan inte få signerad URL till B:s nyckel.
 - **Gate:** `Storage PASS` mot riktig R2-bucket i staging.
 
@@ -144,9 +159,32 @@ En task är klar först när (blueprint §73):
 - **Tester:** Concurrency-test (två workers tar aldrig samma jobb). Valideringsfel retry:as inte. Max attempts → `FAILED`. Payload med fel `company_id` avvisas.
 - **Gate:** `Worker PASS`. Verifiera anslutningsläge mot Supabase (session-läge, inte transaction-pooler om det ger problem).
 
+### S0.7 Radering och operatörsroll [V2-02, V2-09, V2-12]
+- **Mål:** Kunden kan radera företag, organisation och användarkonto. Radering bevisas, inte bara påstås.
+- **Filer:** `application/commands/delete_company.py`, raderingsregister (lista över alla tabeller med `company_id`), schemalagd rensare, verifieringsjobb, separat process eller tjänst för `app_deleter` (inte workern), operatörsroll.
+- **Innehåll:**
+  - `DELETE_COMPANY_DATA` raderar databasrader, storage per prefix (listning, inte kända nycklar), rapporter, chatt, härledda data och HMAC-nyckel för företaget. Auth-användare och organisation raderas på begäran.
+  - Rader med `deleted_at` döljs av RLS och repositories. Rensaren tar bort permanent efter 7 dagar (OB-7).
+  - Verifieringsjobb bekräftar att inga rader eller objekt med företagets id finns kvar och loggar resultatet utan affärsdata.
+  - `app_deleter` körs i en egen process med egna uppgifter och minsta R2-behörighet. Workern får inte raderingsbehörighet. Om det inte går: ADR som beskriver hur två anslutningar hålls isär.
+  - Operatörsroll (OB-9): egen roll, MFA-krav, tidsbegränsad åtkomst, auditloggad. Global feature flag-skrivning är dold tills rollen finns (§0B).
+- **Säkerhetstester:** användare utan rätt roll kan inte radera. Raderingstest per tabell via registret. Täckningstest som fallerar om en tabell med `company_id` saknas i registret. Verifieringsjobbet fallerar om ett objekt ligger kvar.
+- **Gate:** Radering av ett testföretag i staging lämnar noll rader och noll objekt, och verifieringen är loggad. Registrets täckningstest är grönt. Nya tabeller i senare stages måste registreras (gäller i definition of done).
+
 ### STAGE 0 EXIT GATE (§74)
-`Authentication`, `Tenant isolation` (route-matris, Data API-test, RLS fail-closed, pool-läckage, storage-prefix), `Migrations`, `Worker`, `Storage`, `CI` och `Deployed in staging` ska alla vara PASS. Production-deploy tas när production-miljön finns.
+`Authentication`, `Tenant isolation` (utökad route-matris, katalogtest för RLS-täckning, Data API-test, RLS fail-closed inkl. organisationsnivå, pool-läckage, storage-prefix), `Migrations`, `Worker`, `Storage`, `Deletion` (S0.7), `CI` (inkl. dependency-, secret- och containerskanning) och `Deployed in staging` ska alla vara PASS. Production-deploy tas enligt ADR-015 före första kunddata.
 → Security Reviewer granskar. Verifier kör hela sviten. **H3.**
+
+---
+
+## 4A. Production readiness-gate (ADR-015) [V2-04]
+
+Ska vara grön innan **någon** kunddata laddas upp, och innan H4:
+- Production-miljö skapad (Supabase Pro, Railway, R2) med egna hemligheter. Inga staging-nycklar fungerar där.
+- Stage 0 exit gate-testerna körs mot production: Data API-test, RLS fail-closed, route-matris (läsande), storage-prefix, radering.
+- GitHub Environment `production` kräver ägarens godkännande.
+- Backup aktiverad och en återställning testad (§107).
+- Verifieringsrapport från Verifier och Security Reviewer.
 
 ---
 
@@ -154,6 +192,7 @@ En task är klar först när (blueprint §73):
 
 | Task | Mål | Nyckelkrav |
 | --- | --- | --- |
+| S1A.0 | SCANNING och fientliga fixtures | Magic-byte-kontroll, ändelse/MIME-matchning, filnamnssanering, `.xlsm` och andra makroformat avvisas, gränser för sidor, bildmått och storlek tvingade i workern. Fixtures i `tests/`: zip-bomb, XXE, pixelbomb, fel filtyp. Gate för S1A.2–S1A.5. Överväg att inte stödja `.xls` om parsern inte kan sandlådas [V2-06, P7]. |
 | S1A.1 | `ImportBatch`, `ImportFile`, `import_status_history`, state machine | Alla övergångar loggas. Inga tysta fel (§7). Uppladdning via signerad URL (§55). |
 | S1A.2 | CSV-parser | Chunkad (§98). Teckenkodning och avgränsare detekteras. Gräns för radlängd och fältstorlek [SEC-06]. |
 | S1A.3 | XLS/XLSX-parser | Flera ark. `defusedxml`, skydd mot zip-bomber, `.xlsm` och andra makroformat avvisas [SEC-06]. |
@@ -161,7 +200,7 @@ En task är klar först när (blueprint §73):
 | S1A.5 | Bild/dokument-extraktion via adapter | Pydantic-validerad output. Bakgrundsjobb. `MAX_IMAGE_PIXELS` får inte stängas av. Personnummer/organisationsnummer maskas innan lagring. Användaren informeras om att bild/PDF skickas till extern AI-leverantör [SEC-06, SEC-08]. |
 | S1A.6 | Google Sheets via delad länk | **SSRF-skydd [SEC-07]:** allowlist per hopp (`docs.google.com` → högst 2 redirects till `*.googleusercontent.com`, endast `https`, port 443, verifiera mot verkligt beteende). Egen resolver med IP-kontroll (privata, loopback, link-local, metadata, IPv4+IPv6), skydd mot DNS rebinding, tid- och storleksgräns, körs i workern. Länken loggas aldrig. Negativa tester: IP-literal, `localhost`, `169.254.169.254`, `[::1]`, redirect till intern host, `docs.google.com@evil`. |
 | S1A.7 | Dokumentklassificerare | Okänt → `UNKNOWN`, aldrig gissning. |
-| S1A.8 | Kolumnmappning nivå 1–3 | Tröskelvärden enligt §8. Max 10 sample values, personuppgiftskolumner maskas (§99). Filinnehåll märks som otillförlitlig data i prompten. AI-mappning av finansiellt kritiska fält visas alltid för användaren. Injektionstester [SEC-04]. |
+| S1A.8 | Kolumnmappning nivå 1–3 | Tröskelvärden enligt §8. Max 10 sample values, personuppgiftskolumner maskas (§99). Filinnehåll märks som otillförlitlig data i prompten. AI-mappning av finansiellt kritiska fält visas alltid för användaren. Injektionsset med förväntat utfall (noll tool-anrop mot annat företag, noll externa länkar) måste passera [SEC-04, P9, V2-03]. |
 | S1A.9 | UI för bekräftelse av mappning | Enkel för icke-teknisk användare. |
 | S1A.10 | Datakvalitetsrapport | `GOOD` / `USABLE_WITH_WARNINGS` / `POOR` / `INSUFFICIENT`. |
 
@@ -205,7 +244,7 @@ Ordning: revenue → purchase totals → inventory valuation → gross margin �
 | --- | --- | --- |
 | **1D** Restaurang (§78) | Receptkostnad, food cost, contribution margin, itemklassning, waste, actual vs theoretical (neutral formulering: *Unexplained variance detected.*) | Golden restaurant-dataset ger förväntade findings. |
 | **1E** Forecast + scenario (§79) | Moving average, weighted MA, linjär trend, seasonal naive. Pris-, kostnads-, rea-, försäljnings-, inköps- och lönescenarier. Scenarier skriver aldrig till riktig data. | Deterministiska enhetstester. Antaganden och före/efter sparas. |
-| **1F** AI CFO (§80) | `AIProvider`-interface, tool registry (§37), orchestrator, policies (§39), validator, chattpersistens, UI. **Tool-scheman får aldrig ha `company_id`/`organization_id` som argument**, tenant sätts på serversidan och tools använder samma auktorisering som API:t. Chattsvar renderas utan rå HTML och utan automatiska externa länkar. Injektionsfall i AI-evals [SEC-04]. | AI-gate: *"Why did my margin fall?"* använder tool, rätt period, rätt siffror, nämner datagap, hittar inte på orsak. Evals sparade (§72). |
+| **1F** AI CFO (§80) | `AIProvider`-interface, tool registry (§37), orchestrator, policies (§39), validator, chattpersistens, UI. **Tool-scheman får aldrig ha `company_id`/`organization_id` som argument**, tenant sätts på serversidan och tools använder samma auktorisering som API:t. Chattsvar renderas utan rå HTML och utan automatiska externa länkar. Deterministiskt CI-test som fallerar om något tool har argument som heter `company_id`, `organization_id` eller liknande. Injektionsset måste passera i 1F-gaten, inte bara sparas. Samma set, anpassat, gäller S1A.5. Chattrådar privata per användare (OB-8) har eget test [SEC-04, P9]. | AI-gate: *"Why did my margin fall?"* använder tool, rätt period, rätt siffror, nämner datagap, hittar inte på orsak. Evals sparade (§72). |
 | **1G** PDF (§81) | ReportLab (lås version ≥ 3.6.13, kontrollera senaste) som bakgrundsjobb, all användar- och AI-text escapas före `Paragraph`, test med fientlig produktsträng. Lagrad i R2, nedladdning via kort signerad URL [SEC-11, SEC-21]. | PDF innehåller alla sektioner (§42) med verifierad data. |
 | **1H** Portal (§82) | Slutpolering och full sidtäckning. | **Final acceptance (§83)** mot production: skapa konto → företag → ladda upp → mappa → audit → fynd → actions → AI-fråga → scenario → PDF, utan utvecklaringrepp. |
 
@@ -214,8 +253,8 @@ Ordning: revenue → purchase totals → inventory valuation → gross margin �
 
 ## 9A. Radering, E2E och operatörsåtkomst (från säkerhetsgranskningen)
 
-- **Radering [SEC-14]:** `DELETE_COMPANY_DATA` täcker även storage per prefix (listning, inte bara kända nycklar). Organisation och användarkonto kan raderas. Fördröjd permanent radering = 7 dagar (OB-7). Rader med `deleted_at` döljs av RLS och repositories. Integritetsinformationen anger AI-leverantörens och plattformarnas retention.
-- **E2E utan bypass [SEC-16]:** En testhjälpare som bara finns i `tests/e2e/` skapar konton via auth-leverantörens admin-API med en staging-begränsad hemlighet. Den är testinfrastruktur, inte en produktväg, och fungerar aldrig mot production.
+- **Radering [SEC-14] (task S0.7):** `DELETE_COMPANY_DATA` täcker även storage per prefix (listning, inte bara kända nycklar). Organisation och användarkonto kan raderas. Fördröjd permanent radering = 7 dagar (OB-7). Rader med `deleted_at` döljs av RLS och repositories. Integritetsinformationen anger AI-leverantörens och plattformarnas retention.
+- **E2E utan bypass [SEC-16, ADR-016]:** En testhjälpare som bara finns i `tests/e2e/` skapar konton via auth-leverantörens admin-API med en staging-begränsad hemlighet. Den är testinfrastruktur, inte en produktväg, och fungerar aldrig mot production.
 - **Operatör [SEC-18]:** Feature flags med global scope får bara ändras av operatörsroll (break-glass, MFA, auditloggad). Ingen kundroll får det.
 - **Staging:** Ingen kopiering av production-data till staging i Stage 1 (golden datasets räcker) [SEC-24].
 - **`customer_reference_hash`:** HMAC med hemlig nyckel per företag, inte vanlig hash [SEC-08].
@@ -223,7 +262,7 @@ Ordning: revenue → purchase totals → inventory valuation → gross margin �
 ## 9. Löpande verifiering (alla stages)
 
 - **Verifier** körs efter varje stage-gate: golden regression, bypass-scan, arkitekturtest, tenant-negativtester, E2E mot staging.
-- **Security Reviewer** körs efter Stage 0, efter 1C, efter 1F och före production-release.
+- **Security Reviewer** körs efter Stage 0, **efter 1A (före 1B)**, efter 1C, efter 1F, **efter 1G** och före production-release [V2-10].
 - **Release gate (§106):** CI grön, inga kritiska säkerhetsfynd, migration testad, rollback-plan, golden regression grön, E2E grön.
 
 ---
@@ -255,3 +294,29 @@ Pilot med 3–10 företag (§84, §111). Go/No-Go enligt §112. Stage 2–4 plan
 | P14 | Auditlogg: endast INSERT, ingen cascade, definierat schema | S0.3 |
 | P15 | E2E-autentisering utan bypass | Avsnitt 9A |
 | P16 | Inga localhost, docker-compose, mock eller seed i production | Alla tasks, bypass-scan |
+
+**Bevis:** Verifier fyller i CI-körning och testnamn per rad vid varje gate i `docs/verification/`. En rad räknas som uppfylld först när beviset finns [V2-nn, avsnitt 3 i V2-rapporten].
+
+---
+
+## 12. Status mot omgranskningen (V2-01–V2-17)
+
+| Fynd | Åtgärdat i v3 | Var |
+| --- | --- | --- |
+| V2-01 RLS-täckning | Katalogtest i gemensamma gates | Avsnitt 3, S0.3 |
+| V2-02 Radering och operatör | Ny task S0.7 | S0.7 |
+| V2-03 CODEOWNERS | Code Owner-krav, egen agentidentitet, verifiering | Avsnitt 1, S0.0, H8 |
+| V2-04 Production | ADR-015 och readiness-gate | Avsnitt 0, 4A |
+| V2-05 Skanning | Dependency-, secret-, containerskanning | S0.1, avsnitt 3 |
+| V2-06 SCANNING | Ny task S1A.0 med fixtures | S1A.0 |
+| V2-07 Org-nivå RLS | `app.current_user_id`, bootstrap | S0.3 |
+| V2-08 `company_access` | Utökad matris | S0.4 |
+| V2-09 `app_deleter` | Separat process | S0.7 |
+| V2-10 Granskningstillfällen | Efter 1A och 1G | Avsnitt 9 |
+| V2-11 OB-1 | Ett tillfälle före S0.0, kriterier i tabellraden | Avsnitt 0 |
+| V2-12 GDPR-dokument | Underbiträdeslista, HMAC-nyckelhantering | S0.1, S0.7 |
+| V2-13 E2E-konton | ADR-016 | S0.3, 9A |
+| V2-14 Bypass-scan | `.dockerignore`, undantagsfil | S0.1 |
+| V2-15 Uppladdningsstorlek | Radera objekt som överskrider gränsen, avbryt ofullständiga multipart | S0.5 |
+| V2-16 Ordning | Logg flyttad till S0.1, testkontohjälpare i S0.3 | S0.1, S0.3 |
+| V2-17 Rester av SEC-12/13 | Kontouppräkning, tokenlagring, händelsekatalog | S0.3, S0.4 |
