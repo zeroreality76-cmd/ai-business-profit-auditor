@@ -6,7 +6,7 @@ Det här dokumentet är ägarens bekräftelse av beslut som `BUILD_PLAN.md` krä
 | --- | --- |
 | **Beslutsfattare** | Projektägaren |
 | **Datum** | 2026-10-09 |
-| **Underlag** | `BUILD_PLAN.md` v3, `docs/SECURITY_REVIEW_PLAN.md`, `docs/SECURITY_REVIEW_PLAN_V2.md` |
+| **Underlag** | `BUILD_PLAN.md` v3.2, `docs/SECURITY_REVIEW_PLAN.md`, `docs/SECURITY_REVIEW_PLAN_V2.md`, `docs/SECURITY_REVIEW_PLAN_V3.md`, `docs/SECURITY_REVIEW_PLAN_V31.md` |
 
 ## Sammanfattning
 
@@ -17,6 +17,7 @@ Det här dokumentet är ägarens bekräftelse av beslut som `BUILD_PLAN.md` krä
 | OB-5 Region | **EU** | H5 |
 | OB-6 Malware-skanning | **Standardvärdet i BUILD_PLAN** | H5 |
 | OB-1 AI-leverantör | **Anthropic som enda aktiva leverantör i Stage 1**, med villkor nedan | H5 |
+| H1 – Plan v3.2 godkänd av ägaren, 2026-10-09 | **Godkänd** | H1 |
 
 OB-2, OB-3, OB-4 och OB-7–OB-9 är inte föremål för något nytt beslut. Standardvärdena i `BUILD_PLAN.md` avsnitt 0 gäller tills ägaren svarar.
 
