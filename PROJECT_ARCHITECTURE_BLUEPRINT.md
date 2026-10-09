@@ -5,7 +5,7 @@ AI Business Profit Auditor / AI CFO
 | Egenskap | Värde |
 | --- | --- |
 | **Dokumentstatus** | Implementation-Ready |
-| **Version** | 1.1 (omskriven till Markdown; ersätter RTF v1.0) |
+| **Version** | 1.2 (se ändringslogg v1.1 → v1.2; v1.1 omskriven till Markdown, ersätter RTF v1.0) |
 | **Primärt mål** | Bygga en pilotklar produkt som körs live i molnet och kan testas på 3–10 verkliga företag innan större integrationsarbete görs. |
 | **Primär marknad** | Små och medelstora företag internationellt. |
 | **Första djupa vertikaler** | Retail/e-commerce samt restaurang/café. |
@@ -17,6 +17,17 @@ AI Business Profit Auditor / AI CFO
 > **Numrering:** Sektionsnumren (0–117) är oförändrade från v1.0 så att tidigare referenser fortfarande stämmer. Nya sektioner har suffix (t.ex. 0A, 11A).
 
 ---
+
+## Ändringslogg v1.1 → v1.2
+
+Ändringar som följer av godkända ADR:er och säkerhetsgranskningen. Inga andra delar av dokumentet ändras.
+
+| # | Ändring | Källa |
+| --- | --- | --- |
+| 1 | §74 (S0.0-gate, Stage 0 exit gate), §67A och §68: `production` skapas före första kunddata i stället för i Stage 0. Kompenseras av Production readiness-gate (BUILD_PLAN avsnitt 4A). | ADR-015 |
+| 2 | §0B: E2E-testkonton i staging får skapas via auth-leverantörens admin-API av en testhjälpare som bara finns i `tests/e2e/` och aldrig körs mot production. | ADR-016 |
+| 3 | §7: tabellen `import_status_history` får fältet `company_id` (följer §11A). | SECURITY_REVIEW_PLAN_V3 (V3-02) |
+| 4 | §9.1: `organizations` får `created_by` (användar-id för skaparen), som används för att skapa första medlemskapet. | SECURITY_REVIEW_PLAN_V3 (V3-05) |
 
 ## Ändringslogg v1.0 → v1.1
 
