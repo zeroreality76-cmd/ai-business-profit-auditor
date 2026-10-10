@@ -20,7 +20,7 @@ AI Business Profit Auditor / AI CFO
 
 ## Ändringslogg v1.1 → v1.2
 
-Ändringar som följer av godkända ADR:er och säkerhetsgranskningen. Inga andra delar av dokumentet ändras.
+Ändringar som följer av godkända ADR:er och säkerhetsgranskningen. Där innebörden ändrats har brödtexten fått en kort hänvisning "v1.2". Inga andra delar av dokumentet ändras.
 
 | # | Ändring | Källa |
 | --- | --- | --- |
@@ -28,6 +28,7 @@ AI Business Profit Auditor / AI CFO
 | 2 | §0B: E2E-testkonton i staging får skapas via auth-leverantörens admin-API av en testhjälpare som bara finns i `tests/e2e/` och aldrig körs mot production. | ADR-016 |
 | 3 | §7: tabellen `import_status_history` får fältet `company_id` (följer §11A). | SECURITY_REVIEW_PLAN_V3 (V3-02) |
 | 4 | §9.1: `organizations` får `created_by` (användar-id för skaparen), som används för att skapa första medlemskapet. | SECURITY_REVIEW_PLAN_V3 (V3-05) |
+| 5 | §0 OB-1: AI-leverantören är beslutad (Anthropic som enda aktiv leverantör i Stage 1). Gränssnittet och kontraktstesterna byggs före S1A.5. | `docs/DECISIONS.md`, SECURITY_REVIEW_PLAN_V31 (V31-02) |
 
 ## Ändringslogg v1.0 → v1.1
 
@@ -70,7 +71,7 @@ AI Business Profit Auditor / AI CFO
 
 | ID | Fråga | Standard i v1.1 |
 | --- | --- | --- |
-| OB-1 | Vilken AI-leverantör är default i Stage 1? | Bestäms vid S1F.2; kontrollera aktuell modell-/prisdokumentation då. |
+| OB-1 | Vilken AI-leverantör är default i Stage 1? | Beslutad: Anthropic som enda aktiv leverantör i Stage 1 (`docs/DECISIONS.md`). Gränssnittet och kontraktstesterna byggs före S1A.5. |
 | OB-2 | Behörighetsmatris per roll (§4.1). | Förslaget i §4.1. |
 | OB-3 | Exakt formel som mappar prioritetspoäng till severity (§27). | Förslaget i §27. |
 | OB-4 | Standardvärden för lead time/safety stock per vertikal (§21A). | Förslaget i §21A; valideras i pilot. |
@@ -158,7 +159,7 @@ Produktkoden byggs som riktig produktionskod från första raden. Ingenting får
 - Om en funktion inte är färdig ska den vara **osynlig eller avstängd via feature flag (§104)** – aldrig falsk.
 - Om en extern tjänst saknas ska systemet ge ett **tydligt fel** (strukturerat enligt §62), inte en låtsasrespons.
 - Startup ska **misslyckas** om obligatoriska hemligheter eller konfiguration saknas (S0.2).
-- Testning av riktiga flöden görs med riktiga testkonton i staging, skapade genom den vanliga registreringen och styrda av samma regler som alla andra användare.
+- Testning av riktiga flöden görs med riktiga testkonton i staging, skapade genom den vanliga registreringen och styrda av samma regler som alla andra användare. *(Ändrad i v1.2, ADR-016: E2E-testkonton i staging får skapas via auth-leverantörens admin-API av en testhjälpare i `tests/e2e/`.)*
 - CI ska innehålla en **bypass-scan** (§105) som misslyckas om förbjudna mönster hittas i `src/` och `apps/`.
 
 ---
@@ -324,7 +325,7 @@ COMPLETED
 
 Felstatus: `FAILED`, `PARTIALLY_COMPLETED`, `REJECTED`.
 
-- Varje statusändring sparas (tabell `import_status_history`: `import_batch_id`, `from_status`, `to_status`, `reason`, `created_at`).
+- Varje statusändring sparas (tabell `import_status_history`: `import_batch_id`, `from_status`, `to_status`, `reason`, `created_at`). *(Ändrad i v1.2: tabellen får även `company_id`, §11A.)*
 - Inga importfel får tyst kasseras. Varje fel får felkod och användarförståelig förklaring (§62).
 
 ---
@@ -370,7 +371,7 @@ All importerad data normaliseras. Originaldata sparas separat och oförändrad.
 
 ### 9.1 Organization
 
-`id`, `name`, `created_at`
+`id`, `name`, `created_by`, `created_at` *(`created_by` tillagt i v1.2)*
 
 ### 9.2 User
 
@@ -1315,8 +1316,8 @@ GitHub (källkod + CI/CD)
 Bygg-AI ska inte gissa eller skapa dessa åt ägaren. Saknas något ska det rapporteras som **BLOCKER** (§114):
 
 1. Molnhostat Git-repository (t.ex. GitHub) med åtkomst för bygg-AI.
-2. Supabase-projekt för staging och production.
-3. Railway-projekt (API + worker) för staging och production.
+2. Supabase-projekt för staging och production. *(v1.2, ADR-015: `production` skapas före första kunddata.)*
+3. Railway-projekt (API + worker) för staging och production. *(v1.2, ADR-015: `production` skapas före första kunddata.)*
 4. Cloudflare-konto (Pages + R2) och ev. domän.
 5. API-nyckel hos vald AI-leverantör (OB-1).
 6. Plats för hemligheter: plattformarnas secret stores samt CI-secrets.
@@ -1325,7 +1326,7 @@ Bygg-AI ska inte gissa eller skapa dessa åt ägaren. Saknas något ska det rapp
 
 ## 68. ENVIRONMENTS
 
-Minst två molnmiljöer:
+Minst två molnmiljöer *(v1.2, ADR-015: `staging` skapas först och `production` före första kunddata, se BUILD_PLAN avsnitt 4A)*:
 
 | Miljö | Syfte |
 | --- | --- |
@@ -1399,7 +1400,7 @@ Bygg-AI ska följa exakt denna ordning. Varje gate verifieras i **molnet** (CI +
 
 **S0.0 Cloud provisioning (nytt)**
 Skapa repository-struktur för CI/CD, koppla Supabase/Railway/Cloudflare (se §67A), lägg hemligheter i secret stores.
-Gate: `GET /api/v1/health` svarar över HTTPS i **staging** och **production**, deployat via CI/CD.
+Gate: `GET /api/v1/health` svarar över HTTPS i **staging** *(v1.2, ADR-015: production verifieras via Production readiness-gate, BUILD_PLAN avsnitt 4A)*, deployat via CI/CD.
 
 **S0.1 Repository**
 Skapa: backend, frontend, tests, docs, CI.
@@ -1427,7 +1428,7 @@ Gate: failed jobs retry korrekt; låsta jobb återlämnas efter timeout.
 
 ### STAGE 0 EXIT GATE
 
-Får endast gå vidare om: `Authentication PASS`, `Tenant isolation PASS`, `Migrations PASS`, `Worker PASS`, `Storage PASS`, `CI PASS`, `Deployed in staging and production PASS`.
+Får endast gå vidare om: `Authentication PASS`, `Tenant isolation PASS`, `Migrations PASS`, `Worker PASS`, `Storage PASS`, `CI PASS`, `Deployed in staging PASS` *(v1.2, ADR-015: production via readiness-gate)*.
 
 ---
 
