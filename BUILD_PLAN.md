@@ -1,8 +1,8 @@
-# BUILD_PLAN.md – Arbetsschema (Architect-output, v3.2)
+# BUILD_PLAN.md – Arbetsschema (Architect-output, v3.3)
 
 Följer `PROJECT_ARCHITECTURE_BLUEPRINT.md` v1.2 (§115A). Ingen kod i detta dokument. Roller och regler: `AGENTS.md`.
 
-Status: **v3.2 – inarbetar `docs/SECURITY_REVIEW_PLAN.md` (SEC-01–SEC-24, P1–P16), `docs/SECURITY_REVIEW_PLAN_V2.md` (V2-01–V2-17), `docs/SECURITY_REVIEW_PLAN_V3.md` (K1–K8, V3-01–V3-06) och `docs/SECURITY_REVIEW_PLAN_V31.md` (K9–K11, V31-01–V31-07). ADR-015 och ADR-016 är godkända (`docs/DECISIONS.md`). Väntar på verifiering av v3.2 (diffkontroll mot K9–K11) och ägarens godkännande (H1).**
+Status: **v3.3 – som v3.2 med ADR-017 (mergekontroll för en ensam ägare). Ändringen gäller ägarpunkt 1 och 8, H8, S0.0a, avsnitt 4A och 15. ADR-015, ADR-016 och ADR-017 är godkända (`docs/DECISIONS.md`). Väntar på verifiering (diffkontroll av ADR-017-ändringarna).**
 
 Säkerhetsfynd som ändrat planen är märkta **[SEC-nn]** (första rapporten) **[V2-nn]** (omgranskningen) och **[V3-nn]/[Kn]** (granskningen av v3) och **[V31-nn]** (granskningen av v3.1).
 
@@ -40,14 +40,14 @@ Skäl: minst antal rörliga delar, snabbast till live, ingen egen nätverks-/IAM
 
 Punkter märkta **[S0.0]** måste finnas innan S0.0, annars **BLOCKER**. Punkter märkta **[production]** behövs först före första kunddata (ADR-015, avsnitt 4A) och är **inte** blockerande för S0.0. Omärkta punkter gäller från S0.0. Agenten skapar aldrig konton åt ägaren.
 
-1. GitHub-repo med skrivåtkomst för agenten. Agenten ska ha **egen identitet** (GitHub-app eller maskinkonto), inte ägarens personliga konto, så att ägaren kan godkänna agentens pull requests [V2-03]. Smal token (`Contents` + `Workflows` write, bara detta repo) om maskinkonto används.
+1. GitHub-repo med skrivåtkomst för agenten. Agenten arbetar via Claude Code i molnet under ägarens GitHub-konto (Claude GitHub App). Pull requests öppnas därför under ägarens namn, och ägaren **kan inte godkänna dem** (GitHub tillåter inte att författaren godkänner). Mergekontrollen regleras av **ADR-017**. En separat agentidentitet omprövas före första kunddata (C6) [V2-03, ADR-017].
 2. Supabase: **[S0.0]** projekt `staging`. **[production]** projekt `production` (Pro).
 3. Railway: **[S0.0]** miljö `staging` med **tre** tjänster: API, worker och `app_deleter` (S0.7). **[production]** motsvarande miljö för production.
 4. Cloudflare: **[S0.0]** Pages-projekt och R2-bucket för staging. **[production]** bucket för production.
 5. API-nyckel hos AI-leverantör (Anthropic). **[S0.0 – staging]** nyckel för staging, används bara med syntetiska data tills C1 är dokumenterad. **[production]** nyckel för production skapas **först efter** att C1 är dokumenterad i `DECISIONS.md` [V2-11, V3-01].
 6. Hemligheter läggs i GitHub Environments (`staging`, `production`) och plattformarnas secret stores. **Aldrig i chatten eller i repot.**
 7. **[production]** GitHub Environment `production` ska kräva manuellt godkännande (required reviewer = ägaren).
-8. Branch protection på `main`: PR krävs, CI krävs, **Require review from Code Owners**, **Do not allow bypassing** (inklusive administratörer), inga force-pushar, inga direkt-pushar [SEC-10, V2-03]. Kräver att agenten har egen identitet (punkt 1). Under planeringsfasen, då inga kodändringar sker, gäller Required approvals = 0 och ägarens manuella merge som kontroll.
+8. Branch protection på `main` (ruleset `protect-main`): PR krävs, **Require review from Code Owners**, inga force-pushar, ingen radering och (när CI finns) obligatoriska statuskontroller. **Bypass-lista: Repository admin med *For pull requests only*** (ADR-017). Det innebär ingen direktpush, inte ens för ägaren, och att skyddade filer kräver ett medvetet, loggat bypass-merge av ägaren [SEC-10, V2-03, ADR-017].
 9. Slå på GitHub secret scanning och push protection [SEC-15].
 10. OB-1, OB-5 och OB-6 är **beslutade** 2026-10-09 (`docs/DECISIONS.md`). Kvarstående villkor C1–C4 finns i den filen.
 11. Supabase: lägg aldrig appens tabeller i Husappens projekt. Staging-projektet är separat [SEC-01].
@@ -67,7 +67,7 @@ Agenterna kör själva däremellan.
 | H5 | Besluta OB-1, OB-5 och OB-6 före S0.0 – **genomförd 2026-10-09** (`DECISIONS.md`) | Ägare |
 | H7 | Godkänn ADR-015 och ADR-016 – **genomförd 2026-10-09** (`DECISIONS.md`) | Ägare |
 | H9 | Godkänn integritetsinformationen (S0.8) före första kunddata | Ägare |
-| H8 | Bekräfta att branch protection, Code Owner-krav och secret scanning är på (skärmdump) | Ägare |
+| H8 | Bekräfta att branch protection, Code Owner-krav och secret scanning är på, och att bypass-listan bara innehåller Repository admin med *For pull requests only* (skärmdump) [ADR-017] | Ägare |
 | H6 | Välj pilotföretag och samla feedback (§84, §111) | Ägare |
 
 ---
@@ -98,9 +98,9 @@ En task är klar först när (blueprint §73):
 - **Beroenden:** H2.
 - **Säkerhetskontroller [SEC-10, SEC-17]:** `CODEOWNERS` som kräver ägarens granskning för `.github/workflows/`, `migrations/`, `infra/`, `core/security.py`, RLS-policyer, bypass-scan-konfiguration och säkerhetstester. Actions låsta till commit-SHA, `permissions:` minimala, inget `pull_request_target` med PR-kod, deploy-tokens per miljö med minsta behörighet. PR-previews får aldrig använda staging- eller production-hemligheter.
 - **Beroenden (ytterligare):** OB-1, OB-5 och OB-6 beslutade (H5, klart), ADR-015 och ADR-016 godkända (H7, klart), inställningar bekräftade (H8, efter S0.0a) [P2, V2-03].
-- **S0.0a – förberedande steg, före H8 [K7, K11, V3-04, V31-05]:** en liten pull request med **enbart** `CODEOWNERS`, som ägaren mergar manuellt innan någon PR med workflows. GitHub läser `CODEOWNERS` från basgrenen, så den första PR:en skyddas inte av filen. H8 görs först när filen finns på `main`, och H8-beviset ska visa det. **Byte av agentidentitet:** direkt efter S0.0a och före första kod-PR skapas agentens egen identitet (GitHub-app eller maskinkonto), Required approvals sätts till 1 och Code Owner-kravet blir bindande. Från och med då kan ägaren godkänna agentens PR:er.
+- **S0.0a – förberedande steg, före H8 [K7, K11, V3-04, V31-05]:** en liten pull request med **enbart** `CODEOWNERS`, som ägaren mergar manuellt innan någon PR med workflows. GitHub läser `CODEOWNERS` från basgrenen, så den första PR:en skyddas inte av filen. H8 görs först när filen finns på `main`, och H8-beviset ska visa det. **Mergekontroll (ADR-017):** ägaren kan inte godkänna agentens PR:er, eftersom de öppnas under ägarens konto. I stället slås Code Owner-kravet på och Repository admin läggs i bypass-listan med *For pull requests only*. Pull requests som rör skyddade filer kräver då ett medvetet, loggat bypass-merge. Först provas om kravet gäller med Required approvals = 0 (villkor C5, se ADR-017). Gäller det inte sätts Required approvals till 1.
 - **Säkerhetstester:** deploy till production går inte att köra utan environment-godkännande. PR från fork får inga hemligheter.
-- **Inställningar som ska verifieras (H8):** Code Owner-granskning krävs, bypass förbjudet även för administratörer, force-push blockerat, secret scanning och push protection på (om repot görs privat och funktionen kräver betald plan: `gitleaks` i CI som fallback), `CODEOWNERS` skyddar även sig själv och `.github/`. Verifier noterar bekräftelsen som bevis.
+- **Inställningar som ska verifieras (H8):** Code Owner-granskning krävs, bypass endast för Repository admin med *For pull requests only* (ADR-017), force-push blockerat, secret scanning och push protection på (om repot görs privat och funktionen kräver betald plan: `gitleaks` i CI som fallback), `CODEOWNERS` skyddar även sig själv och `.github/`. Verifier noterar bekräftelsen som bevis.
 - **Gate:** `GET /api/v1/health` ger 200 över HTTPS i **staging**, deployat av CI/CD. (Production tas via readiness-gaten före första kunddata, ADR-015.) Agenten får aldrig ändra säkerhetstester för att få en gate grön. Sådan ändring rapporteras som BLOCKER.
 
 ### S0.1 Repository
@@ -195,6 +195,7 @@ Ska vara grön innan **någon** kunddata laddas upp, och innan H4:
 - Production-miljö skapad (Supabase Pro, Railway, R2) med egna hemligheter. Inga staging-nycklar fungerar där.
 - Stage 0 exit gate-testerna körs mot production: Data API-test, RLS fail-closed, route-matris (läsande), storage-prefix, radering.
 - GitHub Environment `production` kräver ägarens godkännande.
+- **Mergekontrollen omprövad (ADR-017, C6):** före första kunddata beslutas (a) separat identitet för agenten, (b) en teknisk spärr som hindrar agenten från att merga, eller (c) ägarens uttryckliga godkännande av att kontrollen förblir procedurmässig. Beslutet dokumenteras i `docs/DECISIONS.md`.
 - Backup aktiverad och en återställning testad (§107).
 - **C1 dokumenterad** i `docs/DECISIONS.md` (Anthropics villkor och DPA kontrollerade mot aktuell dokumentation, datum, vilka dokument, utfall) [V3-01].
 - **AI-nyckeln för production skapas först efter C1** och ligger då i secret store. Före det kan ingen kunddata nå leverantören.
@@ -383,3 +384,15 @@ Pilot med 3–10 företag (§84, §111). Go/No-Go enligt §112. Stage 2–4 plan
 | V31-04 | Hänvisningar, märkning av ägarpunkter, P7-pekare, status för S1A.2–S1A.4 rättade | Flera |
 | V31-06 | Ny leverantör ska vara molnbaserad, kunder informeras, dataminimering testas där kontexten byggs, kundvillkor flaggade i H9 | 9B, S0.8, S1A.0b |
 | V31-07 | Testfall tillagda (bootstrap-policy, S1A.5-formulering) | S0.3, S1A.5 |
+
+
+---
+
+## 15. Ändring i v3.3: ADR-017 (mergekontroll för en ensam ägare)
+
+| Ändring | Var | Skäl |
+| --- | --- | --- |
+| Agentens egen identitet ersatt av bypass-lista för pull requests | Ägarpunkt 1 och 8, S0.0a, H8 | Pull requests öppnas under ägarens konto, och GitHub tillåter inte att författaren godkänner. |
+| Prov av Code Owner-krav med Required approvals = 0 | S0.0a, villkor C5 | Dokumentationen säger inte hur kravet fungerar med noll godkännanden. |
+| Omprövning före första kunddata | Avsnitt 4A, villkor C6 | Kontrollen är procedurmässig, inte teknisk, så länge agenten arbetar under ägarens konto. |
+| Nya regler för agenten | `AGENTS.md` regel 15–16 | Agenten får aldrig merga eller ändra inställningar, och ska redovisa skyddade filer i varje pull request. |
