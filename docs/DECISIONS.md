@@ -18,6 +18,7 @@ Det här dokumentet är ägarens bekräftelse av beslut som `BUILD_PLAN.md` krä
 | OB-6 Malware-skanning | **Standardvärdet i BUILD_PLAN** | H5 |
 | OB-1 AI-leverantör | **Anthropic som enda aktiva leverantör i Stage 1**, med villkor nedan | H5 |
 | H1 – Plan v3.2 godkänd av ägaren, 2026-10-09 | **Godkänd** | H1 |
+| ADR-017 Mergekontroll för en ensam ägare (bypass endast för pull requests) | **Godkänd** | H7, H8, S0.0a, avsnitt 4A |
 
 OB-2, OB-3, OB-4 och OB-7–OB-9 är inte föremål för något nytt beslut. Standardvärdena i `BUILD_PLAN.md` avsnitt 0 gäller tills ägaren svarar.
 
@@ -36,6 +37,13 @@ OB-2, OB-3, OB-4 och OB-7–OB-9 är inte föremål för något nytt beslut. Sta
 - **Ändrar:** Blueprint §0B (testkonton skapas genom den vanliga registreringen).
 - **Beslut:** Testhjälparen finns bara i `tests/e2e/`. Den importeras aldrig från `src/`, vägrar köra mot production, använder en hemlighet begränsad till staging som inte exponeras för PR-jobb från forks, och ligger som undantag i bypass-scanens fil under CODEOWNERS.
 - **Villkor:** Det är testinfrastruktur, inte en produktväg.
+
+## ADR-017 – Mergekontroll för en ensam ägare – GODKÄND
+
+- **Dokument:** `docs/adr/ADR-017-solo-owner-merge-control.md`
+- **Ändrar:** `BUILD_PLAN.md` ägarpunkt 1 och 8, S0.0a, H8, avsnitt 4A (den tidigare planen krävde en separat agentidentitet och Required approvals = 1).
+- **Beslut:** Repository admin läggs i bypass-listan med *For pull requests only*, Code Owner-kravet slås på, och ägaren mergar själv. Agenten mergar aldrig.
+- **Villkor:** C5 och C6 nedan. Kontrollen är procedurmässig, inte teknisk, så länge agenten arbetar under ägarens konto.
 
 ## OB-5 – Region: EU
 
@@ -74,3 +82,5 @@ OB-2, OB-3, OB-4 och OB-7–OB-9 är inte föremål för något nytt beslut. Sta
 | C2 | Production readiness-gate grön (`BUILD_PLAN.md` avsnitt 4A) | Ägare, Verifier, Security Reviewer | Före första kunddata och före H4 |
 | C3 | Integritetsinformation och underbiträdeslista klara innan en andra AI-leverantör aktiveras | Ägare | Innan `new_ai_provider` slås på |
 | C4 | Bekräfta att EU-region finns hos Supabase, Railway och R2 när projekten skapas | Ägare | S0.0 |
+| C5 | Prova om Code Owner-kravet gäller med Required approvals = 0 (test på ADR-017-pull requesten) och dokumentera utfallet här. Gäller det inte: sätt Required approvals = 1 | Ägare | Direkt efter att ADR-017 mergats |
+| C6 | Omvärdera mergekontrollen före första kunddata: separat identitet för agenten, teknisk spärr mot att agenten mergar, eller uttryckligt godkännande av att kontrollen förblir procedurmässig | Ägare, Security Reviewer | Före första kunddata (avsnitt 4A) |
