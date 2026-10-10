@@ -1,0 +1,43 @@
+# CODEOWNERS – task S0.0a (BUILD_PLAN.md, S0.0: BP:99, 101, 103)
+#
+# Ägare för alla sökvägar nedan är projektägaren.
+# Filen skyddar sig själv och .github/.
+#
+# Den här filen ändrar inga inställningar. Kravet "Require review from Code
+# Owners" slås på av ägaren i branch protection (H8). Före dess har filen
+# ingen bindande verkan.
+
+# --- CI/CD och styrning av repot ---
+/.github/                                    @zeroreality76-cmd
+/.github/CODEOWNERS                          @zeroreality76-cmd
+
+# --- Styrdokument och beslut ---
+/AGENTS.md                                   @zeroreality76-cmd
+/BUILD_PLAN.md                               @zeroreality76-cmd
+/PROJECT_ARCHITECTURE_BLUEPRINT.md           @zeroreality76-cmd
+/docs/DECISIONS.md                           @zeroreality76-cmd
+/docs/adr/                                   @zeroreality76-cmd
+
+# --- Databas och infrastruktur ---
+# RLS-policyer skapas i Alembic-migrationer och täcks därför av /migrations/.
+/migrations/                                 @zeroreality76-cmd
+/infra/                                      @zeroreality76-cmd
+
+# --- Säkerhetskärna ---
+/src/business_auditor/core/security.py       @zeroreality76-cmd
+
+# --- PLATSHÅLLARE enligt S0.0 (BP:99) ---
+# Filerna nedan finns inte ännu. Sökvägarna är antaganden som S0.1 och S0.3
+# ska bekräfta eller justera i samma pull request som skapar filerna.
+# Ändringar här kräver ägarens granskning, eftersom filen skyddar sig själv.
+
+# RLS-policyer och RLS-undantagslista utanför migrations/ (BP:87, 128).
+/src/business_auditor/infrastructure/database/rls/   @zeroreality76-cmd
+
+# Bypass-scanens konfiguration och undantagsfil (BP:108, 111).
+/scripts/bypass_scan*                        @zeroreality76-cmd
+
+# Säkerhetstester (BP:108, 112). Arkitekturtesterna ingår: de förbjuder bland
+# annat att testdubletter importeras från src/.
+/tests/architecture/                         @zeroreality76-cmd
+/tests/security/                             @zeroreality76-cmd
